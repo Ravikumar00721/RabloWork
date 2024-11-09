@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:social_media_app/api/api_service.dart';  // Import ApiService
 import 'package:social_media_app/models/app_data.dart';  // Import AppData Singleton
 import 'package:social_media_app/models/post_model.dart';  // PostModel class
 
@@ -7,30 +8,19 @@ class HomeScreenController extends GetxController {
   var isLoading = true.obs;
   var errorMessage = ''.obs;
 
-  // Fetch posts and store them in the singleton instance with dummy data
+  // Fetch posts from the API and store them in the singleton instance
   void fetchPosts() async {
     try {
       isLoading(true);  // Show loading indicator
 
-      // Simulate network delay for loading data
-      await Future.delayed(Duration(seconds: 2));
-
-      // Dummy data to simulate posts
-      List<Map<String, dynamic>> fetchedPosts = [
-        {'id': 1, 'title': 'Post 1', 'body': 'Post 1 body content goes here...'},
-        {'id': 2, 'title': 'Post 2', 'body': 'Post 2 body content goes here...'},
-        {'id': 3, 'title': 'Post 3', 'body': 'Post 3 body content goes here...'},
-        {'id': 4, 'title': 'Post 4', 'body': 'Post 4 body content goes here...'},
-      ];
-
-      // Convert the dummy data to List<PostModel>
-      List<PostModel> posts = fetchedPosts.map((post) => PostModel.fromJson(post)).toList();
+      // Fetch posts from the API
+      List<PostModel> posts = await ApiService().getPosts();
 
       // Store the fetched posts in AppData singleton
       AppData().setPosts(posts);
 
     } catch (e) {
-      errorMessage.value = 'Failed to load posts';
+      errorMessage.value = 'Failed to load posts: $e';
     } finally {
       isLoading(false); // Hide loading indicator
     }
@@ -42,8 +32,7 @@ class HomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Fetch posts when the screen is initialized
-    controller.fetchPosts();
+    controller.fetchPosts();  // Fetch posts on screen load
 
     return Scaffold(
       appBar: AppBar(
@@ -56,7 +45,7 @@ class HomeScreen extends StatelessWidget {
           } else if (controller.errorMessage.isNotEmpty) {
             return Text(controller.errorMessage.value);  // Show error message if any
           } else {
-            // Get the posts from AppData singleton
+            // Display list of posts
             List<PostModel> posts = AppData().getPosts();
             return ListView.builder(
               itemCount: posts.length,
@@ -68,7 +57,6 @@ class HomeScreen extends StatelessWidget {
                     title: Text(post.title),
                     subtitle: Text(post.body),
                     onTap: () {
-                      // Navigate to PostDetailsScreen with post ID
                       Get.toNamed('/post_details', arguments: post.id);
                     },
                   ),
@@ -79,14 +67,55 @@ class HomeScreen extends StatelessWidget {
         }),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Action for FAB, for now just a placeholder
-          print("FAB clicked");
-          // You can later show a dialog or navigate to a new screen to add a new post
-        },
+        onPressed: () => _showCreatePostDialog(context),
         child: Icon(Icons.add),
         tooltip: 'Add New Post',
       ),
+    );
+  }
+
+  // Show a dialog to enter post details and then create a post
+  void _showCreatePostDialog(BuildContext context) {
+    final titleController = TextEditingController();
+    final bodyController = TextEditingController();
+
+    Get.defaultDialog(
+      title: "Create New Post",
+      content: Column(
+        children: [
+          TextField(
+            controller: titleController,
+            decoration: InputDecoration(hintText: "Enter title"),
+          ),
+          TextField(
+            controller: bodyController,
+            decoration: InputDecoration(hintText: "Enter body"),
+          ),
+        ],
+      ),
+      textConfirm: "Submit",
+      textCancel: "Cancel",
+      onConfirm: () async {
+        String title = titleController.text.trim();
+        String body = bodyController.text.trim();
+        
+        if (title.isNotEmpty && body.isNotEmpty) {
+          try {
+            Get.back();  // Close dialog
+            controller.isLoading(true);  // Show loading indicator
+            // Call the createPost method
+            PostModel newPost = await ApiService().createPost(title, body);
+            // Update the posts list in AppData
+            AppData().addPost(newPost);
+          } catch (e) {
+            controller.errorMessage.value = 'Failed to create post: $e';
+          } finally {
+            controller.isLoading(false);
+          }
+        } else {
+          Get.snackbar("Error", "Title and Body cannot be empty");
+        }
+      },
     );
   }
 }
