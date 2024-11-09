@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:social_media_app/api/api_service.dart';  // Import ApiService
-import 'package:social_media_app/models/app_data.dart';  // Import AppData Singleton
-import 'package:social_media_app/models/post_model.dart';  // PostModel class
+import 'package:social_media_app/api/api_service.dart';
+import 'package:social_media_app/models/app_data.dart';
+import 'package:social_media_app/models/post_model.dart';
+import 'package:social_media_app/exception/app_exception.dart';
 
 class HomeScreenController extends GetxController {
   var isLoading = true.obs;
@@ -12,17 +13,24 @@ class HomeScreenController extends GetxController {
   void fetchPosts() async {
     try {
       isLoading(true);  // Show loading indicator
-
+      errorMessage.value = '';  // Clear previous error message
+      
       // Fetch posts from the API
       List<PostModel> posts = await ApiService().getPosts();
+      AppData().setPosts(posts);  // Store posts in AppData singleton
 
-      // Store the fetched posts in AppData singleton
-      AppData().setPosts(posts);
-
+    } on NetworkException catch (e) {
+      errorMessage.value = e.toString();  // Display network error message
+    } on TimeoutException catch (e) {
+      errorMessage.value = e.toString();  // Display timeout error message
+    } on InvalidResponseException catch (e) {
+      errorMessage.value = e.toString();  // Display invalid response error message
+    } on UnknownException catch (e) {
+      errorMessage.value = e.toString();  // Display unknown error message
     } catch (e) {
-      errorMessage.value = 'Failed to load posts: $e';
+      errorMessage.value = 'An unexpected error occurred';  // General fallback
     } finally {
-      isLoading(false); // Hide loading indicator
+      isLoading(false);  // Hide loading indicator
     }
   }
 }
@@ -47,6 +55,9 @@ class HomeScreen extends StatelessWidget {
           } else {
             // Display list of posts
             List<PostModel> posts = AppData().getPosts();
+            if (posts.isEmpty) {
+              return Text('No posts available');  // Handle empty list case
+            }
             return ListView.builder(
               itemCount: posts.length,
               itemBuilder: (context, index) {
@@ -98,17 +109,26 @@ class HomeScreen extends StatelessWidget {
       onConfirm: () async {
         String title = titleController.text.trim();
         String body = bodyController.text.trim();
-        
+
         if (title.isNotEmpty && body.isNotEmpty) {
           try {
             Get.back();  // Close dialog
             controller.isLoading(true);  // Show loading indicator
             // Call the createPost method
             PostModel newPost = await ApiService().createPost(title, body);
-            // Update the posts list in AppData
-            AppData().addPost(newPost);
-          } catch (e) {
-            controller.errorMessage.value = 'Failed to create post: $e';
+            AppData().addPost(newPost);  // Update the posts list in AppData
+          } on NetworkException catch (e) {
+            controller.errorMessage.value = e.toString();
+            Get.snackbar("Error", "Network error: ${e.message}");
+          } on TimeoutException catch (e) {
+            controller.errorMessage.value = e.toString();
+            Get.snackbar("Error", "Timeout: ${e.message}");
+          } on InvalidResponseException catch (e) {
+            controller.errorMessage.value = e.toString();
+            Get.snackbar("Error", "Invalid response: ${e.message}");
+          } on UnknownException catch (e) {
+            controller.errorMessage.value = e.toString();
+            Get.snackbar("Error", "Unknown error: ${e.message}");
           } finally {
             controller.isLoading(false);
           }

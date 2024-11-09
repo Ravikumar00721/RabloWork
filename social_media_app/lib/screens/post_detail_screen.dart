@@ -27,8 +27,16 @@ class PostDetailsScreen extends StatelessWidget {
             final posts = snapshot.data![0] as List<PostModel>;
             final comments = snapshot.data![1] as List<CommentModel>;
 
-            // Find the post with the matching postId
-            final post = posts.firstWhere((post) => post.id == postId);
+            // Try to find the post with the matching postId, otherwise return a placeholder
+            final post = posts.firstWhere(
+              (post) => post.id == postId,
+              orElse: () => PostModel(id: -1, userId: -1, title: 'Not Found', body: 'Post not found'),  // Return a placeholder if not found
+            );
+
+            // If the placeholder post is returned, show "Post details not found."
+            if (post.id == -1) {
+              return Center(child: Text('Post details not found.'));
+            }
 
             return Padding(
               padding: const EdgeInsets.all(16.0),

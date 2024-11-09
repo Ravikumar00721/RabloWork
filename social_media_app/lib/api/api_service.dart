@@ -20,7 +20,7 @@ class ApiService {
           return PostModel.fromJson(json);
         }).toList();
       } else {
-        throw Exception(
+        throw InvalidResponseException(
             'Failed to load posts, status code: ${response.statusCode}');
       }
     } catch (e) {
@@ -38,7 +38,7 @@ class ApiService {
             .map((json) => CommentModel.fromJson(json))
             .toList();
       } else {
-        throw Exception(
+        throw InvalidResponseException(
             'Failed to load comments, status code: ${response.statusCode}');
       }
     } catch (e) {
@@ -54,7 +54,7 @@ class ApiService {
       if (response.statusCode == 200) {
         return UserModel.fromJson(response.data);
       } else {
-        throw Exception(
+        throw InvalidResponseException(
             'Failed to load user details, status code: ${response.statusCode}');
       }
     } catch (e) {
